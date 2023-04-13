@@ -8,13 +8,16 @@
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
+		@State var count = 2147483647
+        var body: some View {
         TabView {
             VStack {
                 Text("Welcome! 🥳")
                 Text("▶️ tests your app")
                 Text("➕adds an element")
                 Text("🛠 previews your Swift code")
+                Button(action:{ count += 1 }) {Text("Klicks \(count)")}
+                Text("\(Int.max)")
                 Image("image").resizable().scaledToFit().frame(maxWidth: 100)
             }.tabItem { Image(systemName: "circle") }
             ScrollView {
