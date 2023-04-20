@@ -110,7 +110,7 @@ struct ContentView: View {
                 term = "0"
                 output = term_list[0]
                 if term_list.count == 2 {
-                    var calc: String = term_list[0] + operation + term_list[1]
+                    let calc: String = term_list[0] + operation + term_list[1]
                     output = String(NSExpression(format: calc).expressionValue(with: nil, context: nil) as? Int ?? 0)
                 }
             }
