@@ -19,7 +19,7 @@ struct ContentView: View {
             ["7", "8", "9", "+"],
             ["4", "5", "6", "-"],
             ["1", "2", "3", "*"],
-            ["0", "+/-", "=",]
+            ["0", "+/-", "Enter",]
         ]
         
         var body: some View {
@@ -48,7 +48,7 @@ struct ContentView: View {
                             }) {
                                 Text(button)
                                     .font(.largeTitle)
-                                    .frame(width: button == "=" ? 140 : 64, height: 64)
+                                    .frame(width: button == "Enter" ? 140 : 64, height: 64)
                                     .foregroundColor(.white)
                                     .background(Color.blue)
                                     .cornerRadius(32)
@@ -61,15 +61,18 @@ struct ContentView: View {
         }
         
         func buttonPressed(_ button: String) {
+            if term_list.count == 2 && button != "MC"{
+                clearInput()
+            }
             switch button {
-            case "=":
+            case "Enter":
                 submitNumber()
             case "C":
                 clearInput()
             case "MC":
-                self.memory = term_list[term_list.count - 1]
+                self.memory = output
             case "MP":
-                self.term.append(String(memory))
+                self.term.append(memory)
             case "+/-":
                 term = String(Int(term)! * -1)
             case "/", "*", "-", "+":
@@ -122,4 +125,21 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
     }
 }
+
+/*
+ Help for NSExpression
+ 
+ let context: NSMutableDictionary = ["a": 4.0, "b": 5.0]
+ let expr = NSExpression(format: "$a + 2 * $b")
+ if let result = expr.expressionValue(with: nil, context: context) as? Double {
+     print(result) // 14.0
+ }
+ //==============================
+ 
+ let object = "Hello World"
+ let expr = NSExpression(forKeyPath: "length")
+ if let result = expr.expressionValue(with: object, context: nil) as? Int {
+     print(result) // 11
+ }
+ */
 

@@ -16,7 +16,7 @@
 /* Begin PBXFileReference section */
 		F876ECE925473E310020F15C /* Blank Template.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Blank Template.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F876ECEC25473E310020F15C /* Blank_TemplateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Blank_TemplateApp.swift; sourceTree = "<group>"; };
-		F876ECEE25473E310020F15C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F876ECEE25473E310020F15C /* ContentView.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; name = ContentView.swift; path = "Blank Template/ContentView.swift"; sourceTree = SOURCE_ROOT; };
 		F876ECF025473E330020F15C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F876ECF325473E330020F15C /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		F876ECF525473E330020F15C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
