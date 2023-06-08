@@ -8,29 +8,24 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import AVFoundation
 
 struct Station: Identifiable {
     let id = UUID()
-    let name: String
+    let region: CLCircularRegion
     let task: String
-    let radius: CLLocationDistance
-    let coordinate: CLLocationCoordinate2D
     var wasEntered: Bool = false
     var isCompleted: Bool = false
+    var showAlert: Bool = false
 }
 
-// redefine LocationManager because we want to modify and use it for our purposes
+// redefine (delegate) LocationManager because we want to modify and use it for our purposes
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     let locationManager = CLLocationManager()
     @Published var currentLocation: CLLocation?
     @Published var locationPermissionDenied = false
     
-    // move the regions property to the LocationManager class and declare it as @Published
-    @Published var regions = [
-        Station(name: "Bahnhof Zoo", task: "", radius: 500, coordinate: CLLocationCoordinate2D(latitude: 52.506717, longitude: 13.332841)),
-        Station(name: "San Francisco", task: "", radius: 1000, coordinate: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)),
-        Station(name: "Los Angeles", task: "", radius: 1000, coordinate: CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437))
-    ]
+    @Published var regions: Array<Station> = []
     
     override init() {
         super.init()
@@ -40,32 +35,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
     }
-    
-    //implement this because the CLLocationManagerDelegate protocoll wants it that way
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        switch manager.authorizationStatus {
-        case .denied :
-            locationPermissionDenied = true
-            print("Denied")
-            print(locationPermissionDenied)
-        case .restricted:
-            print("restricted")
-        case .notDetermined:
-            print("not Determined")
-            manager.requestWhenInUseAuthorization()
-        case .authorizedWhenInUse :
-            print("Authorized when in use")
-            manager.allowsBackgroundLocationUpdates = true
-            manager.startUpdatingLocation()
-        default:
-            print("Default")
-        }
+    convenience init(regionList region: Array<Station>) {
+        self.init()
+        regions = region
     }
     
-    //implemtent this also because
-    func locationManager(_ manager: CLLocationManager, didFailWithError error : Error) {
-        print("Error: \(error.localizedDescription)")
-    }
     
     //that is our interesting function that we want to hijack
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -73,17 +47,33 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.currentLocation = location
             
             for index in regions.indices {
-                //if !regions[index].isCompleted { // check if the station is not completed before updating its status
-                    regions[index].isCompleted = isLocationWithinRegion(location: self.currentLocation ?? CLLocation(latitude: 0, longitude: 0), region: regions[index])
-                //}
+                if !regions[index].wasEntered { // check if the station is not completed before updating its status
+                    regions[index].wasEntered = regions[index].region.contains(CLLocationCoordinate2D(latitude: currentLocation?.coordinate.latitude ?? 0, longitude: currentLocation?.coordinate.longitude ?? 0))
+                    if regions[index].wasEntered {
+                        print("didset")
+                        regions[index].showAlert = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {self.regions[index].showAlert = false}
+                        AudioServicesPlayAlertSound(1150) //1150
+                    }
+                }
             }
         }
     }
 }
 
+var regions = [
+    Station(region: CLCircularRegion(center: CLLocationCoordinate2D(latitude: 52.506717, longitude: 13.332841),           radius: 100, identifier: "Bahnhof Zoo"), task: "Den Obdachlosen guten Tag sagen"),
+    Station(region: CLCircularRegion(center: CLLocationCoordinate2D(latitude: 52.504988996307304, longitude: 13.33483623811678), radius: 100, identifier: "Gedächtniskirche"), task: "Den Ahnen gedenken"),
+    Station(region: CLCircularRegion(center: CLLocationCoordinate2D(latitude: 52.504766143284044, longitude: 13.35282168752689), radius: 200, identifier: "Lützowplatzpark"), task: "Die Heroin Spritzen einsammeln"),
+    Station(region: CLCircularRegion(center: CLLocationCoordinate2D(latitude: 52.51456487796334, longitude: 13.350798159127661), radius: 30, identifier: "Ost-Stern"), task: "5 Minuten Smarts zählen"),
+    Station(region: CLCircularRegion(center: CLLocationCoordinate2D(latitude: 52.51620557167104, longitude: 13.381657870151626), radius: 15, identifier: "Cafe Lebensart"), task: "Brötchen kaufen"),
+    Station(region: CLCircularRegion(center: CLLocationCoordinate2D(latitude: 52.51959759928302, longitude: 13.40705978053755), radius: 500, identifier: "Neptunbrunnen"), task: "Frühstücken")
+      ]
+
 struct ContentView: View {
-    @StateObject var locationManager = LocationManager() // declare locationManager as @StateObject
-    
+
+    @StateObject var locationManager = LocationManager(regionList: regions) // declare locationManager as @StateObject
+
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 52.505802, longitude: 13.331935),
         span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
@@ -91,18 +81,32 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
-            Text("Current Location:")
-            Text("\(locationManager.currentLocation?.coordinate.latitude ?? 0), \(locationManager.currentLocation?.coordinate.longitude ?? 0)")
-            
-            // access the regions property of the locationManager instead of the ContentView class
             ForEach(locationManager.regions.indices, id: \.self) { index in
                 Button(action: {
                     locationManager.regions[index].isCompleted.toggle()
+                    //if !locationManager.regions[index].isCompleted {
+                    //    locationManager.regions[index].isCompleted = true
+                    //}
                 }) {
-                    Text(locationManager.regions[index].name)
+                    Text(locationManager.regions[index].region.identifier)
+                    Text(locationManager.regions[index].task).font(.footnote)
                 }
+                .alert(isPresented: $locationManager.regions[index].showAlert) {
+                        Alert(
+                            title: Text(locationManager.regions[index].region.identifier),
+                            message: Text(locationManager.regions[index].task),
+                            dismissButton: .default(Text("Got it!"))
+                        )
+                    }
+                    // Verzögerung von 5 Sekunden hinzufügen
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                          locationManager.regions[index].showAlert = false // Schließen Sie den Alert hier
+                      }
+                    }
+                .frame(minWidth: 0, maxWidth: .infinity)
                 .padding()
-                .background(locationManager.regions[index].isCompleted ? Color.green : Color.red)
+                .background(locationManager.regions[index].wasEntered ? locationManager.regions[index].isCompleted ? Color.green : Color.yellow : Color.red)
                 .foregroundColor(.white)
                 .cornerRadius(10)
             }
@@ -111,11 +115,6 @@ struct ContentView: View {
                 userTrackingMode: .constant(.follow))
         }
     }
-}
-
-func isLocationWithinRegion(location: CLLocation, region: Station) -> Bool {
-    let distance = location.distance(from: CLLocation(latitude: region.coordinate.latitude, longitude: region.coordinate.longitude))
-    return distance <= region.radius
 }
 
     struct ContentView_Previews: PreviewProvider {
