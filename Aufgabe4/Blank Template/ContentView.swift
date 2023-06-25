@@ -14,6 +14,7 @@ struct Station: Identifiable {
     let id = UUID()
     let region: CLCircularRegion
     let task: String
+    var dist_to_loc = 0.0
     var wasEntered: Bool = false
     var isCompleted: Bool = false
     var showAlert: Bool = false
@@ -21,7 +22,7 @@ struct Station: Identifiable {
 
 // redefine (delegate) LocationManager because we want to modify and use it for our purposes
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    let locationManager = CLLocationManager()
+    var locationManager = CLLocationManager()
     @Published var currentLocation: CLLocation?
     @Published var locationPermissionDenied = false
     
@@ -47,6 +48,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.currentLocation = location
             
             for index in regions.indices {
+                regions[index].dist_to_loc = (currentLocation?.distance(
+                    from: CLLocation(latitude: regions[index].region.center.latitude, longitude: regions[index].region.center.longitude)) ?? 0.0) as Double
                 if !regions[index].wasEntered { // check if the station is not completed before updating its status
                     regions[index].wasEntered = regions[index].region.contains(CLLocationCoordinate2D(latitude: currentLocation?.coordinate.latitude ?? 0, longitude: currentLocation?.coordinate.longitude ?? 0))
                     if regions[index].wasEntered {
@@ -78,51 +81,86 @@ struct ContentView: View {
         center: CLLocationCoordinate2D(latitude: 52.505802, longitude: 13.331935),
         span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
     )
-    
+
+    @State private var userTrackingMode: MapUserTrackingMode = .follow
+
     var columns = [GridItem(.flexible()), GridItem(.flexible())]
     var body: some View {
-        VStack {
-            LazyVGrid(columns: columns) {
-                ForEach(locationManager.regions.indices, id: \.self) { index in
-                    
-                    Button(action: {
-                        if !locationManager.regions[index].isCompleted {
-                            locationManager.regions[index].isCompleted = true
+        ZStack {
+            VStack {
+                LazyVGrid(columns: columns) {
+                    ForEach(locationManager.regions.indices, id: \.self) { index in
+                        
+                        Button(action: {
+                            if !locationManager.regions[index].isCompleted {
+                                locationManager.regions[index].isCompleted = true
+                            }
+                        }) {
+                            VStack {
+                                Text(locationManager.regions[index].region.identifier).font(.title3)
+                                Text(locationManager.regions[index].task).font(.footnote)
+                            }
+                            .alert(isPresented: $locationManager.regions[index].showAlert) {
+                                Alert(
+                                    title: Text(locationManager.regions[index].region.identifier),
+                                    message: Text(locationManager.regions[index].task),
+                                    dismissButton: .default(Text("Als erledigt markieren!")) {locationManager.regions[index].isCompleted = true}
+                                )
+                            }
+                            .frame(width: (UIScreen.main.bounds.width-2*12) / 2)
+                            .padding(4)
+                            .background(locationManager.regions[index].wasEntered ? locationManager.regions[index].isCompleted ? Color.green : Color.yellow : Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                         }
-                    }) {
-                        VStack {
-                            Text(locationManager.regions[index].region.identifier).font(.title3)
-                            Text(locationManager.regions[index].task).font(.footnote)
-                        }
-                        .alert(isPresented: $locationManager.regions[index].showAlert) {
-                            Alert(
-                                title: Text(locationManager.regions[index].region.identifier),
-                                message: Text(locationManager.regions[index].task),
-                                dismissButton: .default(Text("Erledigt!")) {locationManager.regions[index].isCompleted = true}
-                            )
-                        }
-                        .frame(width: (UIScreen.main.bounds.width-2*12) / 2)
-                        .padding(4)
-                        .background(locationManager.regions[index].wasEntered ? locationManager.regions[index].isCompleted ? Color.green : Color.yellow : Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
                     }
                 }
+                Map(coordinateRegion: $region,
+                    showsUserLocation: true,
+                    userTrackingMode: $userTrackingMode,
+                    annotationItems: locationManager.regions,
+                    annotationContent: {place in MapAnnotation(
+                        coordinate: place.region.center,
+                        content: {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(.red)
+                                .font(.title)
+                            Text("\(place.region.identifier): \(place.dist_to_loc, specifier: "%.1f")m")
+                        }
+                    )}
+                )
+                .gesture( // add a gesture modifier
+                    DragGesture()
+                        .onChanged { _ in
+                            userTrackingMode = .none
+                        }
+                )
             }
-            Map(coordinateRegion: $region,
-                showsUserLocation: true,
-                userTrackingMode: .constant(.follow),
-                annotationItems: regions,
-                annotationContent: {place in MapAnnotation(
-                    coordinate: place.region.center,
-                    content: {
-                        Image(systemName: "mappin.circle.fill")
-                                            .foregroundColor(.red)
-                                            .font(.title)
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: { // add a button to toggle tracking mode
+                        if userTrackingMode == .none {
+                            userTrackingMode = .follow // start following user location
+                        } else {
+                            userTrackingMode = .none // stop following user location
+                        }
+                    }) {
+                        Image(systemName: "location.circle")
+                            .resizable()
+                            .frame(width: 40, height: 40)// change button title according to tracking mode
                     }
-                 )}
-            )
-            Text("\(3.1415*region.span.longitudeDelta/180)")
+                    .frame(width: 40, height: 40)
+                    .padding(7)
+                    .foregroundColor(Color.black)
+                    .background(Color.gray)
+                    .cornerRadius(10)
+                    .opacity(userTrackingMode == .none ? 1 : 0) // change button opacity according to tracking mode
+                    .animation(.easeInOut)
+                    .padding(7)
+                }
+            }
         }
     }
 }
